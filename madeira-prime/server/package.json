@@ -1,7 +1,7 @@
 {
   "name": "madeira-prime-server",
   "version": "1.0.0",
-  "description": "Backend API para Madeira Prime — Express + Prisma + MySQL",
+  "description": "Backend API para Madeira Prime — Express + Prisma + PostgreSQL",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
