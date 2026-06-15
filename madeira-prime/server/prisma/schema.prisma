@@ -1,12 +1,12 @@
 // Prisma Schema — Madeira Prime
-// Base de dados: MySQL 8+
+// Base de dados: PostgreSQL (Neon)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
