@@ -1,0 +1,209 @@
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* Background */
+.bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.bgImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
+  transform: scale(1.04);
+  animation: slowZoom 20s ease-out forwards;
+}
+
+@keyframes slowZoom {
+  from { transform: scale(1.04); }
+  to { transform: scale(1.0); }
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(13, 17, 23, 0.88) 0%,
+    rgba(13, 17, 23, 0.70) 50%,
+    rgba(13, 17, 23, 0.82) 100%
+  );
+}
+
+/* Content */
+.content {
+  position: relative;
+  z-index: 1;
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 10rem 2.5rem 6rem;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #C9A84C;
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  margin-bottom: 2rem;
+  animation: fadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 600;
+  line-height: 1.18;
+  color: #ffffff;
+  margin-bottom: 1.6rem;
+  letter-spacing: -0.01em;
+}
+
+.gold {
+  color: #C9A84C;
+  font-style: italic;
+}
+
+.subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.75;
+  margin-bottom: 2.8rem;
+  max-width: 580px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Buttons */
+.btns {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 2.5rem;
+}
+
+.btnPrimary {
+  background: #C9A84C;
+  color: #0D1117;
+  border: 2px solid #C9A84C;
+  padding: 1rem 2.2rem;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  transition: all 0.25s ease;
+}
+
+.btnPrimary:hover {
+  background: #D4B05C;
+  border-color: #D4B05C;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(201, 168, 76, 0.4);
+}
+
+.btnOutline {
+  background: transparent;
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  padding: 1rem 2.2rem;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  transition: all 0.25s ease;
+}
+
+.btnOutline:hover {
+  border-color: #C9A84C;
+  color: #C9A84C;
+  transform: translateY(-2px);
+}
+
+/* Trust Bar */
+.trust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.trustDot { color: #C9A84C; font-size: 0.9rem; }
+.trustSep { color: rgba(201, 168, 76, 0.4); }
+
+/* Scroll Indicator */
+.scrollIndicator {
+  position: absolute;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 1;
+  animation: bounce 2s ease infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(6px); }
+}
+
+.scrollLine {
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(to bottom, rgba(201, 168, 76, 0.6), transparent);
+}
+
+.scrollIndicator span {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(201, 168, 76, 0.5);
+}
+
+@media (max-width: 640px) {
+  .content { padding: 9rem 1.5rem 5rem; }
+  .btns { flex-direction: column; align-items: center; }
+  .trust { font-size: 0.6rem; gap: 0.5rem; }
+}

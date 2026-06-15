@@ -1,0 +1,134 @@
+// Prisma Schema — Madeira Prime
+// Base de dados: MySQL 8+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model leads_proprietarios {
+  id                     Int      @id @default(autoincrement())
+  nome                   String   @db.VarChar(255)
+  email                  String   @db.VarChar(255)
+  telefone               String   @db.VarChar(50)
+  localizacao            String   @db.VarChar(255)
+  tipo_imovel            String   @db.VarChar(100)
+  num_quartos            Int
+  notas                  String?  @db.Text
+  quartos_calc           Int
+  diaria_media           Decimal  @db.Decimal(10, 2)
+  ocupacao_estimada      Decimal  @db.Decimal(5, 2)
+  receita_bruta_estimada Decimal  @db.Decimal(12, 2)
+  lucro_liquido_estimado Decimal  @db.Decimal(12, 2)
+  created_at             DateTime @default(now())
+
+  @@map("leads_proprietarios")
+}
+
+model leads_investidores {
+  id                     Int      @id @default(autoincrement())
+  nome                   String   @db.VarChar(255)
+  email                  String   @db.VarChar(255)
+  telefone               String   @db.VarChar(50)
+  capital_disponivel     String   @db.VarChar(100)
+  horizonte_investimento String   @db.VarChar(100)
+  mercado_interesse      String   @db.VarChar(100)
+  notas                  String?  @db.Text
+  created_at             DateTime @default(now())
+
+  @@map("leads_investidores")
+}
+
+model imoveis {
+  id              Int        @id @default(autoincrement())
+  titulo          String     @db.VarChar(255)
+  descricao       String?    @db.Text
+  localizacao     String     @db.VarChar(255)
+  tipo            String     @db.VarChar(100)
+  num_quartos     Int
+  preco_por_noite Decimal    @db.Decimal(10, 2)
+  status          String     @default("disponivel") @db.VarChar(20)
+  ocupado_ate     DateTime?  @db.Date
+  imagem_url      String?    @db.VarChar(500)
+  created_at      DateTime   @default(now())
+  reservas        reservas[]
+
+  @@map("imoveis")
+}
+
+model reservas {
+  id                Int      @id @default(autoincrement())
+  imovel_id         Int
+  imovel            imoveis  @relation(fields: [imovel_id], references: [id])
+  nome_hospede      String   @db.VarChar(255)
+  email_hospede     String   @db.VarChar(255)
+  telefone_hospede  String   @db.VarChar(50)
+  check_in          DateTime @db.Date
+  check_out         DateTime @db.Date
+  total_noites      Int
+  preco_por_noite   Decimal  @db.Decimal(10, 2)
+  total_amount      Decimal  @db.Decimal(12, 2)
+  status            String   @default("aguardar_pagamento") @db.VarChar(30)
+  stripe_session_id String?  @db.VarChar(255)
+  pagamento_status  String   @default("aguardar_pagamento") @db.VarChar(30)
+  notas             String?  @db.Text
+  created_at        DateTime @default(now())
+
+  @@map("reservas")
+}
+
+model projetos_investimento {
+  id           Int               @id @default(autoincrement())
+  titulo       String            @db.VarChar(255)
+  localizacao  String            @db.VarChar(255)
+  area_m2      Int?
+  preco_compra Decimal?          @db.Decimal(12, 2)
+  preco_venda  Decimal?          @db.Decimal(12, 2)
+  valorizacao  String            @db.VarChar(20)
+  status       String            @default("em_curso") @db.VarChar(50)
+  created_at   DateTime          @default(now())
+  imagens      projeto_imagens[]
+
+  @@map("projetos_investimento")
+}
+
+enum ProjetoFase {
+  before
+  during
+  after
+}
+
+model projeto_imagens {
+  id         Int                    @id @default(autoincrement())
+  projeto_id Int
+  projeto    projetos_investimento  @relation(fields: [projeto_id], references: [id])
+  url        String                 @db.VarChar(500)
+  phase      ProjetoFase
+  caption    String?                @db.VarChar(255)
+  date       String?                @db.VarChar(20)
+  ordem      Int                    @default(0)
+  created_at DateTime               @default(now())
+
+  @@map("projeto_imagens")
+}
+
+model marcacoes {
+  id                Int      @id @default(autoincrement())
+  nome              String   @db.VarChar(255)
+  email             String   @db.VarChar(255)
+  telefone          String   @db.VarChar(50)
+  data_preferida    DateTime @db.Date
+  hora_preferida    String   @db.VarChar(10)
+  tipo_cliente      String   @db.VarChar(50)
+  notas             String?  @db.Text
+  status            String   @default("aguardar_pagamento") @db.VarChar(30)
+  stripe_session_id String?  @db.VarChar(255)
+  pagamento_status  String   @default("aguardar_pagamento") @db.VarChar(30)
+  created_at        DateTime @default(now())
+
+  @@map("marcacoes")
+}

@@ -1,0 +1,361 @@
+.section {
+  padding: 7rem 2.5rem;
+  background: #111827;
+  border-top: 1px solid rgba(201, 168, 76, 0.1);
+}
+
+.container {
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(2rem, 3.5vw, 2.8rem);
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.22;
+  margin-bottom: 1rem;
+}
+
+.gold { color: #C9A84C; font-style: italic; }
+
+.subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.9rem;
+  color: #8A9AAE;
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* Project selector (only shown when > 1 project) */
+.projectTabs {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.projectTab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 1rem 1.5rem;
+  min-width: 200px;
+  background: #0D1117;
+  border: 1px solid rgba(201, 168, 76, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.projectTab:hover { border-color: rgba(201, 168, 76, 0.35); }
+
+.projectTabActive {
+  border-color: #C9A84C;
+  background: rgba(201, 168, 76, 0.06);
+}
+
+.projectTabName {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.projectTabLoc {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.7rem;
+  color: #8A9AAE;
+}
+
+.projectTabVal {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #C9A84C;
+  margin-top: 0.15rem;
+}
+
+/* Phase toggle (Before / After) */
+.phaseTabs {
+  display: flex;
+  max-width: 360px;
+  margin: 0 auto 2.5rem;
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.phaseTab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.2rem;
+  background: #0D1117;
+  border: none;
+  border-right: 1px solid rgba(201, 168, 76, 0.15);
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8A9AAE;
+  transition: background 0.2s, color 0.2s;
+}
+
+.phaseTab:last-child { border-right: none; }
+
+.phaseTab:hover {
+  background: rgba(201, 168, 76, 0.05);
+  color: #C9A84C;
+}
+
+.phaseTabActive {
+  background: rgba(201, 168, 76, 0.12);
+  color: #C9A84C;
+}
+
+.phaseCount {
+  background: rgba(201, 168, 76, 0.12);
+  color: #C9A84C;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: 99px;
+  padding: 0.15rem 0.5rem;
+  min-width: 20px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.phaseTabActive .phaseCount {
+  background: rgba(201, 168, 76, 0.28);
+}
+
+/* Image grid */
+.imageGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.imageCard {
+  display: flex;
+  flex-direction: column;
+}
+
+.imageWrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  aspect-ratio: 4/3;
+  border: 1px solid rgba(201, 168, 76, 0.1);
+  background: #1a2235;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.imageWrapper:hover .image {
+  transform: scale(1.04);
+}
+
+.empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  color: #5A6A7E;
+  padding: 3rem;
+  border: 1px dashed rgba(201, 168, 76, 0.1);
+  border-radius: 6px;
+}
+
+/* Show more button */
+.showMoreRow {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.showMoreBtn {
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  color: #C9A84C;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.showMoreBtn:hover {
+  background: rgba(201, 168, 76, 0.08);
+  border-color: rgba(201, 168, 76, 0.6);
+}
+
+/* Carousel */
+.carousel {
+  width: 100%;
+}
+
+.carouselTrack {
+  position: relative;
+  padding: 0 3rem;
+}
+
+.comparisonPair {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.comparisonSide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.comparisonLabel {
+  display: block;
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8A9AAE;
+  padding: 0.45rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(201, 168, 76, 0.12);
+  border-radius: 3px;
+}
+
+.comparisonLabelAfter {
+  color: #C9A84C;
+  background: rgba(201, 168, 76, 0.07);
+  border-color: rgba(201, 168, 76, 0.25);
+}
+
+.comparisonDivider {
+  width: 2px;
+  background: linear-gradient(to bottom, transparent, rgba(201, 168, 76, 0.4), transparent);
+  margin: 0 0.75rem;
+  align-self: stretch;
+  flex-shrink: 0;
+  border-radius: 1px;
+}
+
+.slideTitle {
+  text-align: center;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #8A9AAE;
+  margin-top: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.carouselBtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.5rem;
+  height: 2.5rem;
+  background: rgba(13, 17, 23, 0.9);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 50%;
+  color: #C9A84C;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+  z-index: 2;
+  padding-bottom: 2px;
+}
+
+.carouselBtn:hover {
+  background: rgba(201, 168, 76, 0.12);
+  border-color: rgba(201, 168, 76, 0.55);
+}
+
+.carouselBtnPrev { left: 0; }
+.carouselBtnNext { right: 0; }
+
+.carouselDots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(201, 168, 76, 0.2);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.dotActive {
+  background: #C9A84C;
+  transform: scale(1.35);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .imageGrid { grid-template-columns: repeat(2, 1fr); }
+  .carouselTrack { padding: 0 2.5rem; }
+}
+
+@media (max-width: 640px) {
+  .section { padding: 5rem 1.5rem; }
+  .imageGrid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+  .projectTab { min-width: unset; flex: 1; }
+  .phaseTabs { max-width: 100%; }
+  .phaseTab { font-size: 0.68rem; padding: 0.75rem 0.5rem; }
+  .carouselTrack { padding: 0 2rem; }
+  .comparisonDivider { margin: 0 0.4rem; }
+  .carouselBtn { width: 2rem; height: 2rem; font-size: 1.4rem; }
+}
+
+@media (max-width: 480px) {
+  .comparisonPair { flex-direction: column; gap: 0.75rem; }
+  .comparisonDivider { width: 100%; height: 2px; margin: 0; background: linear-gradient(to right, transparent, rgba(201, 168, 76, 0.4), transparent); align-self: auto; }
+  .carouselTrack { padding: 0 2.25rem; }
+}
+
+@media (max-width: 400px) {
+  .imageGrid { grid-template-columns: 1fr; }
+}
