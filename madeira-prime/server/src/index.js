@@ -18,7 +18,12 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
 
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : [CLIENT_URL]
+  : [
+      'https://madeiraprime.vercel.app',
+      'https://madeiraprime.com',
+      'https://www.madeiraprime.com',
+      CLIENT_URL,
+    ]
 
 app.use(cors({
   origin: ALLOWED_ORIGINS,
