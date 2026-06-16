@@ -1,6 +1,8 @@
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const helmet = require('helmet')
+const rateLimit = require('express-rate-limit')
 const { PrismaClient } = require('@prisma/client')
 const { body, validationResult } = require('express-validator')
 const Stripe = require('stripe')
@@ -11,6 +13,10 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY)
 
 const PORT = process.env.PORT || 3001
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'
+
+// ─── Security Headers ─────────────────────────────────────────────────────────
+
+app.use(helmet())
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 // ALLOWED_ORIGINS: comma-separated list of permitted origins (set on Render).
@@ -31,6 +37,32 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }))
+
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+// General limiter: 100 req / 15 min per IP across all API routes.
+// Stripe webhook is skipped — Stripe IPs must never be throttled.
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/api/webhook/stripe',
+  message: { success: false, error: 'Demasiados pedidos. Tente novamente em 15 minutos.' },
+})
+
+// Write limiter: stricter cap on form-submission endpoints to prevent spam.
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Demasiados pedidos. Tente novamente em 15 minutos.' },
+})
+
+app.use(generalLimiter)
+app.use('/api/leads', writeLimiter)
+app.use('/api/checkout', writeLimiter)
 
 // ─── Stripe Webhook ────────────────────────────────────────────────────────────
 // MUST be registered BEFORE express.json() — Stripe requires the raw Buffer body.
@@ -165,8 +197,8 @@ app.get('/api/health', (req, res) => {
 app.post('/api/leads/proprietario', [
   body('nome').trim().notEmpty().withMessage('Nome é obrigatório').isLength({ max: 255 }),
   body('email').trim().isEmail().withMessage('Email inválido').normalizeEmail(),
-  body('telefone').trim().notEmpty().withMessage('Telefone é obrigatório'),
-  body('localizacao').trim().notEmpty().withMessage('Localização é obrigatória'),
+  body('telefone').trim().notEmpty().withMessage('Telefone é obrigatório').isLength({ max: 50 }),
+  body('localizacao').trim().notEmpty().withMessage('Localização é obrigatória').isLength({ max: 255 }),
   body('tipo_imovel')
     .trim().notEmpty().withMessage('Tipo de imóvel é obrigatório')
     .isIn(['Apartamento', 'Moradia', 'Studio', 'Vivenda', 'Outro']),
@@ -176,6 +208,7 @@ app.post('/api/leads/proprietario', [
   body('ocupacao_estimada').optional().isDecimal(),
   body('receita_bruta_estimada').optional().isDecimal(),
   body('lucro_liquido_estimado').optional().isDecimal(),
+  body('notas').optional().trim().isLength({ max: 1000 }).withMessage('Notas demasiado longas'),
 ], async (req, res) => {
   const validationError = handleValidationErrors(req, res)
   if (validationError !== null) return
@@ -215,12 +248,13 @@ app.get('/api/leads/proprietario', async (req, res) => {
 app.post('/api/leads/investidor', [
   body('nome').trim().notEmpty().withMessage('Nome é obrigatório').isLength({ max: 255 }),
   body('email').trim().isEmail().withMessage('Email inválido').normalizeEmail(),
-  body('telefone').trim().notEmpty().withMessage('Telefone é obrigatório'),
-  body('capital_disponivel').trim().notEmpty().withMessage('Capital disponível é obrigatório'),
-  body('horizonte_investimento').trim().notEmpty().withMessage('Horizonte de investimento é obrigatório'),
+  body('telefone').trim().notEmpty().withMessage('Telefone é obrigatório').isLength({ max: 50 }),
+  body('capital_disponivel').trim().notEmpty().withMessage('Capital disponível é obrigatório').isLength({ max: 100 }),
+  body('horizonte_investimento').trim().notEmpty().withMessage('Horizonte de investimento é obrigatório').isLength({ max: 100 }),
   body('mercado_interesse')
     .trim().notEmpty().withMessage('Mercado de interesse é obrigatório')
     .isIn(['Madeira', 'Lisboa', 'Ambos', 'A definir']),
+  body('notas').optional().trim().isLength({ max: 1000 }).withMessage('Notas demasiado longas'),
 ], async (req, res) => {
   const validationError = handleValidationErrors(req, res)
   if (validationError !== null) return
@@ -381,9 +415,10 @@ app.post('/api/checkout/reserva', [
   body('imovel_id').isInt({ min: 1 }).withMessage('Imóvel inválido'),
   body('nome_hospede').trim().notEmpty().withMessage('Nome é obrigatório').isLength({ max: 255 }),
   body('email_hospede').trim().isEmail().withMessage('Email inválido').normalizeEmail(),
-  body('telefone_hospede').trim().notEmpty().withMessage('Telefone é obrigatório'),
+  body('telefone_hospede').trim().notEmpty().withMessage('Telefone é obrigatório').isLength({ max: 50 }),
   body('check_in').notEmpty().isISO8601().withMessage('Data de entrada inválida (YYYY-MM-DD)'),
   body('check_out').notEmpty().isISO8601().withMessage('Data de saída inválida (YYYY-MM-DD)'),
+  body('notas').optional().trim().isLength({ max: 1000 }).withMessage('Notas demasiado longas'),
 ], async (req, res) => {
   const validationError = handleValidationErrors(req, res)
   if (validationError !== null) return
@@ -489,10 +524,11 @@ app.post('/api/checkout/reserva', [
 app.post('/api/checkout/marcacao', [
   body('nome').trim().notEmpty().withMessage('Nome é obrigatório').isLength({ max: 255 }),
   body('email').trim().isEmail().withMessage('Email inválido').normalizeEmail(),
-  body('telefone').trim().notEmpty().withMessage('Telefone é obrigatório'),
+  body('telefone').trim().notEmpty().withMessage('Telefone é obrigatório').isLength({ max: 50 }),
   body('data_preferida').notEmpty().isISO8601().withMessage('Formato de data inválido'),
   body('hora_preferida').trim().notEmpty().matches(/^\d{2}:\d{2}$/).withMessage('Formato de hora inválido'),
   body('tipo_cliente').trim().isIn(['proprietario', 'investidor']).withMessage('Tipo de cliente inválido'),
+  body('notas').optional().trim().isLength({ max: 1000 }).withMessage('Notas demasiado longas'),
 ], async (req, res) => {
   const validationError = handleValidationErrors(req, res)
   if (validationError !== null) return
