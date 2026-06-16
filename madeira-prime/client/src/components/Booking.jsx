@@ -5,6 +5,24 @@ import { API_URL } from '../config'
 
 const HORAS = ['09:00','10:00','11:00','14:00','15:00','16:00','17:00']
 
+// Returns the current date and time in Madeira's timezone (Atlantic/Madeira).
+// This is WET (UTC+0) in winter and WEST (UTC+1) in summer — never use plain
+// UTC here or slots near the DST boundary will be wrongly blocked/allowed.
+function getMadeiraDateTime() {
+  const now = new Date()
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Atlantic/Madeira',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(now)
+  const get = type => parts.find(p => p.type === type).value
+  return {
+    dateStr: `${get('year')}-${get('month')}-${get('day')}`,
+    hour: parseInt(get('hour'), 10),
+    minute: parseInt(get('minute'), 10),
+  }
+}
+
 function getCalendarDays(year, month) {
   const first = new Date(year, month, 1).getDay()
   const total = new Date(year, month + 1, 0).getDate()
@@ -22,10 +40,13 @@ export default function Booking() {
   const { t } = useLang()
   const bk = t.booking
   const ref = useRef(null)
-  const today = new Date()
+  const madeiraNow = getMadeiraDateTime()
+  const todayStr = madeiraNow.dateStr
+  const [todayYear, todayMonthNum] = todayStr.split('-').map(Number)
+  const todayMonth0 = todayMonthNum - 1 // 0-indexed for React state / Date API
 
-  const [viewYear, setViewYear] = useState(today.getFullYear())
-  const [viewMonth, setViewMonth] = useState(today.getMonth())
+  const [viewYear, setViewYear] = useState(todayYear)
+  const [viewMonth, setViewMonth] = useState(todayMonth0)
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedHora, setSelectedHora] = useState('')
   const [tipoCliente, setTipoCliente] = useState('proprietario')
@@ -45,14 +66,40 @@ export default function Booking() {
     return () => observer.disconnect()
   }, [])
 
-  const prevMonth = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) } else setViewMonth(m => m - 1); setSelectedDate(null) }
-  const nextMonth = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) } else setViewMonth(m => m + 1); setSelectedDate(null) }
+  // Clear a previously selected time slot if the user picks today and the slot
+  // is now disabled (already past or within the 30-minute buffer).
+  useEffect(() => {
+    if (selectedHora && isSlotDisabled(selectedHora)) setSelectedHora('')
+  }, [selectedDate])
 
+  const prevMonth = () => {
+    const newMonth = viewMonth === 0 ? 11 : viewMonth - 1
+    const newYear  = viewMonth === 0 ? viewYear - 1 : viewYear
+    // Prevent navigating to a month that is entirely in the past
+    const newMonthStr  = `${newYear}-${String(newMonth + 1).padStart(2, '0')}`
+    const todayMonthStr = todayStr.slice(0, 7)
+    if (newMonthStr < todayMonthStr) return
+    setViewMonth(newMonth); setViewYear(newYear); setSelectedDate(null)
+  }
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) } else setViewMonth(m => m + 1)
+    setSelectedDate(null)
+  }
+
+  // A calendar day is in the past if its ISO date string is before today in Madeira.
   const isPast = (day) => {
     if (!day) return false
-    return new Date(viewYear, viewMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    return fmtDate(viewYear, viewMonth, day) < todayStr
   }
-  const isToday = (day) => day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear()
+  const isToday = (day) => fmtDate(viewYear, viewMonth, day) === todayStr
+
+  // A time slot is disabled when the selected date is today AND the slot falls
+  // within the next 30 minutes or is already past (30-min booking buffer).
+  const isSlotDisabled = (hora) => {
+    if (selectedDate !== todayStr) return false
+    const [h, m] = hora.split(':').map(Number)
+    return (h * 60 + m) <= (madeiraNow.hour * 60 + madeiraNow.minute + 30)
+  }
 
   const handleChange = e => { setForm(prev => ({ ...prev, [e.target.name]: e.target.value })); setError('') }
 
@@ -132,9 +179,17 @@ export default function Booking() {
               <div className={styles.timeSection}>
                 <p className={styles.timeSectionTitle}>{bk.timeTitle}</p>
                 <div className={styles.timeGrid}>
-                  {HORAS.map(h => (
-                    <button key={h} onClick={() => setSelectedHora(h)} className={`${styles.timeSlot} ${selectedHora === h ? styles.timeSlotActive : ''}`}>{h}</button>
-                  ))}
+                  {HORAS.map(h => {
+                    const disabled = isSlotDisabled(h)
+                    return (
+                      <button
+                        key={h}
+                        onClick={() => !disabled && setSelectedHora(h)}
+                        disabled={disabled}
+                        className={`${styles.timeSlot} ${selectedHora === h ? styles.timeSlotActive : ''} ${disabled ? styles.timeSlotDisabled : ''}`}
+                      >{h}</button>
+                    )
+                  })}
                 </div>
               </div>
 

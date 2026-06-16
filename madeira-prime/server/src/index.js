@@ -179,6 +179,24 @@ function stripeReady() {
   return process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('SUBSTITUA')
 }
 
+// Returns the current date and wall-clock time in Madeira's timezone.
+// Render servers run UTC; without this conversion a booking for 09:00 on a
+// summer day (WEST = UTC+1) would pass a naive UTC check at 08:01 UTC.
+function nowInMadeira() {
+  const now = new Date()
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Atlantic/Madeira',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(now)
+  const get = type => parts.find(p => p.type === type).value
+  return {
+    dateStr: `${get('year')}-${get('month')}-${get('day')}`,
+    hour: parseInt(get('hour'), 10),
+    minute: parseInt(get('minute'), 10),
+  }
+}
+
 // ─── Health Check ─────────────────────────────────────────────────────────────
 
 app.get('/api/health', (req, res) => {
@@ -532,6 +550,25 @@ app.post('/api/checkout/marcacao', [
 ], async (req, res) => {
   const validationError = handleValidationErrors(req, res)
   if (validationError !== null) return
+
+  // ── Madeira-aware past-booking guard ─────────────────────────────────────
+  const madeiraTime = nowInMadeira()
+
+  if (req.body.data_preferida < madeiraTime.dateStr) {
+    return res.status(400).json({ success: false, error: 'Não é possível marcar para uma data passada.' })
+  }
+
+  if (req.body.data_preferida === madeiraTime.dateStr) {
+    const [bookHour, bookMinute] = req.body.hora_preferida.split(':').map(Number)
+    const bookMinutes = bookHour * 60 + bookMinute
+    const nowMinutes  = madeiraTime.hour * 60 + madeiraTime.minute + 30 // 30-min buffer
+    if (bookMinutes <= nowMinutes) {
+      return res.status(400).json({
+        success: false,
+        error: 'Este horário já não está disponível. Por favor escolha um horário com pelo menos 30 minutos de antecedência.',
+      })
+    }
+  }
 
   const keyOk   = process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('SUBSTITUA')
   const priceOk = process.env.STRIPE_PRICE_ID   && !process.env.STRIPE_PRICE_ID.includes('XXXX')

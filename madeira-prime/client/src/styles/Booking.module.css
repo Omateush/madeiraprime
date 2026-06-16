@@ -234,6 +234,13 @@
   font-weight: 700;
 }
 
+.timeSlotDisabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+  pointer-events: none;
+  text-decoration: line-through;
+}
+
 /* Selection Summary */
 .selectionSummary {
   display: flex;
