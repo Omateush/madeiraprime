@@ -3,9 +3,18 @@ import styles from '../styles/Testimonials.module.css'
 import { useLang } from '../contexts/LanguageContext'
 
 const NAMES   = ['Carolina Mendes', 'James Whitmore', 'Sofia Câmara', 'Rui Vasconcelos', 'Margarida Pinto', 'André Braga']
-const INITIALS = ['CM', 'JW', 'SC', 'RV', 'MP', 'AB']
 const BADGES  = ['+€38.4K / 6M', '47% ROI', '3.2× Revenue', '3 Deals', 'Convertida', 'Multi-país']
-const COLORS  = ['#C9A84C', '#7C6B3A', '#8A6B2A', '#A08C4C', '#B89A3C', '#6B5A2A']
+
+const BASE = 'https://images.unsplash.com/'
+const Q    = '?auto=format&fit=crop&crop=faces&w=88&h=88&q=85'
+const AVATARS = [
+  BASE + 'photo-1487412720507-e7ab37603c6f' + Q, // Carolina — professional woman
+  BASE + 'photo-1507003211169-0a1dd7228f2d' + Q, // James    — professional man
+  BASE + 'photo-1573496359142-b8d87734a5a2' + Q, // Sofia    — professional woman
+  BASE + 'photo-1472099645785-5658abf4ff4e' + Q, // Rui      — professional man
+  BASE + 'photo-1580489944761-15a19d654956' + Q, // Margarida — professional woman
+  BASE + 'photo-1519085360753-af0119f7cbe7' + Q, // André    — professional man
+]
 
 function Stars() {
   return (
@@ -50,8 +59,8 @@ export default function Testimonials() {
               <p className={styles.text}>{item.text}</p>
               <Stars />
               <div className={styles.footer}>
-                <div className={styles.avatar} style={{ background: COLORS[i] + '22', borderColor: COLORS[i] + '44' }}>
-                  <span style={{ color: COLORS[i] }}>{INITIALS[i]}</span>
+                <div className={styles.avatar}>
+                  <img src={AVATARS[i]} alt={NAMES[i]} />
                 </div>
                 <div className={styles.info}>
                   <span className={styles.name}>{NAMES[i]}</span>
