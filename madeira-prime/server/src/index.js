@@ -25,9 +25,9 @@ app.use(helmet())
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
   : [
+      'https://madeiraprime.pt',
+      'https://www.madeiraprime.pt',
       'https://madeiraprime.vercel.app',
-      'https://madeiraprime.com',
-      'https://www.madeiraprime.com',
       CLIENT_URL,
     ]
 
@@ -517,6 +517,7 @@ app.post('/api/checkout/reserva', [
         check_out: req.body.check_out,
         nome: req.body.nome_hospede,
       },
+      allow_promotion_codes: true,
       success_url: `${CLIENT_URL}/?success=1&type=reserva&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${CLIENT_URL}/?cancelled=1&type=reserva`,
     })
@@ -605,6 +606,7 @@ app.post('/api/checkout/marcacao', [
         hora: req.body.hora_preferida,
         tipo: req.body.tipo_cliente,
       },
+      allow_promotion_codes: true,
       success_url: `${CLIENT_URL}/?success=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${CLIENT_URL}/?cancelled=1`,
     })
