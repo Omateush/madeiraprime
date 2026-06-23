@@ -18,10 +18,11 @@ import AdminPanel from './components/AdminPanel'
 import BookingSuccess from './components/BookingSuccess'
 import BookingCancelled from './components/BookingCancelled'
 
-const params = new URLSearchParams(window.location.search)
+const params   = new URLSearchParams(window.location.search)
+const pathname = window.location.pathname
 const isAdmin     = params.has('admin')
-const isSuccess   = params.has('success')
-const isCancelled = params.has('cancelled')
+const isSuccess   = pathname === '/success' || params.has('success')
+const isCancelled = pathname === '/cancel'  || params.has('cancelled')
 
 export default function App() {
   if (isAdmin)     return <AdminPanel />

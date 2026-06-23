@@ -518,8 +518,8 @@ app.post('/api/checkout/reserva', [
         nome: req.body.nome_hospede,
       },
       allow_promotion_codes: true,
-      success_url: `${CLIENT_URL}/?success=1&type=reserva&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${CLIENT_URL}/?cancelled=1&type=reserva`,
+      success_url: `${CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}&type=reserva`,
+      cancel_url:  `${CLIENT_URL}/cancel`,
     })
 
     // 5. Save session ID on reservation
@@ -607,8 +607,8 @@ app.post('/api/checkout/marcacao', [
         tipo: req.body.tipo_cliente,
       },
       allow_promotion_codes: true,
-      success_url: `${CLIENT_URL}/?success=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${CLIENT_URL}/?cancelled=1`,
+      success_url: `${CLIENT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${CLIENT_URL}/cancel`,
     })
 
     await prisma.marcacoes.update({ where: { id: marcacao.id }, data: { stripe_session_id: session.id } })
