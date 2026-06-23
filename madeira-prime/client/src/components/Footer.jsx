@@ -154,7 +154,7 @@ export default function Footer() {
                   href="mailto:info@madeiraprime.pt"
                   className={styles.contactLink}
                 >
-                  info@madeiraprime.pt
+                  Tiagojfshow@gmail.com
                 </a>
               </li>
               <li>
@@ -165,15 +165,15 @@ export default function Footer() {
                   rel="noopener noreferrer"
                   className={styles.contactLink}
                 >
-                  WhatsApp: +351 912 000 000
+                  WhatsApp: +351 968 188 909
                 </a>
               </li>
               <li>
                 <span className={styles.contactIcon}>📍</span>
                 <span className={styles.contactText}>
-                  Estrada Monumental 1
+                  Azinhaga casa branca, 36
                   <br />
-                  9000-061 Funchal, Madeira
+                  9000-110 Funchal, Madeira
                 </span>
               </li>
             </ul>
