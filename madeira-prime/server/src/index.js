@@ -28,7 +28,8 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
       'https://madeiraprime.pt',
       'https://www.madeiraprime.pt',
       'https://madeiraprime.vercel.app',
-      CLIENT_URL,
+      'http://localhost:3000', // Next.js frontend dev server
+      CLIENT_URL,              // configurable per-environment via .env
     ]
 
 app.use(cors({
@@ -395,6 +396,83 @@ app.delete('/api/imoveis/:id', async (req, res) => {
   } catch (error) {
     console.error('[DELETE /api/imoveis/:id]', error)
     res.status(500).json({ success: false, error: 'Erro ao eliminar imóvel' })
+  }
+})
+
+// ─── PROPERTIES — PUBLIC API (Next.js frontend) ──────────────────────────────
+// Thin adapter over `imoveis` that maps Portuguese DB fields to the English
+// Property interface expected by the Next.js app. Only returns available properties.
+
+const TIPO_MAP = {
+  Apartamento: 'apartment',
+  Studio:      'studio',
+  Moradia:     'house',
+  Vivenda:     'villa',
+  Outro:       'house',
+}
+
+function mapImovelToProperty(imovel) {
+  return {
+    id:            String(imovel.id),
+    name:          imovel.titulo,
+    type:          TIPO_MAP[imovel.tipo] ?? 'apartment',
+    location:      imovel.localizacao,
+    description:   imovel.descricao ?? '',
+    pricePerNight: parseFloat(imovel.preco_por_noite),
+    maxGuests:     imovel.num_quartos * 2,
+    bedrooms:      imovel.num_quartos,
+    bathrooms:     Math.max(1, Math.floor(imovel.num_quartos / 2)),
+    images:        imovel.imagem_url ? [imovel.imagem_url] : [],
+    amenities:     [],
+  }
+}
+
+// GET /api/properties
+// Supports ?location= ?type= ?guests= — only returns status=disponivel properties.
+app.get('/api/properties', async (req, res) => {
+  try {
+    const { location, type, guests } = req.query
+
+    const where = { status: 'disponivel' }
+
+    if (location) {
+      where.localizacao = { contains: location, mode: 'insensitive' }
+    }
+
+    if (type) {
+      const TIPO_REVERSE = { apartment: 'Apartamento', studio: 'Studio', house: 'Moradia', villa: 'Vivenda' }
+      const dbTipo = TIPO_REVERSE[type]
+      if (dbTipo) where.tipo = dbTipo
+    }
+
+    if (guests) {
+      const n = parseInt(guests, 10)
+      if (!isNaN(n) && n > 0) {
+        where.num_quartos = { gte: Math.ceil(n / 2) }
+      }
+    }
+
+    const imoveis = await prisma.imoveis.findMany({ where, orderBy: { created_at: 'desc' } })
+    res.json(imoveis.map(mapImovelToProperty))
+  } catch (error) {
+    console.error('[GET /api/properties]', error)
+    res.status(500).json({ error: 'Failed to fetch properties' })
+  }
+})
+
+// GET /api/properties/:id
+app.get('/api/properties/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid property ID' })
+
+    const imovel = await prisma.imoveis.findUnique({ where: { id } })
+    if (!imovel) return res.status(404).json({ error: 'Property not found' })
+
+    res.json(mapImovelToProperty(imovel))
+  } catch (error) {
+    console.error('[GET /api/properties/:id]', error)
+    res.status(500).json({ error: 'Failed to fetch property' })
   }
 })
 
