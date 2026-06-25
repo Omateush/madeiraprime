@@ -1,119 +1,135 @@
-// Seed 6 Madeira Island properties into the `properties` table.
-// Safe to re-run — skips insert if the table already has rows.
+// Seed 5 real Madeira Prime properties into the `properties` table.
+// Always resets: deletes all existing rows then inserts fresh data.
+// Re-run safely at any time: node prisma/seed.js
 
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
 const PROPERTIES = [
+  // ── 1. Apartamento Funchal ────────────────────────────────────────────────
   {
-    title:           'Ocean Vista Suite',
-    description:     'A bright, modern apartment perched above Funchal Bay, with floor-to-ceiling windows framing panoramic Atlantic views. Fully equipped kitchen, air conditioning in every room, and a private terrace perfect for sundowners.',
+    title:           'Apartamento Funchal',
+    description:     'Modern apartment in the heart of Funchal, Madeira\'s vibrant capital. A private terrace frames city and sea views, two comfortable bedrooms sleep up to four guests, and the fully equipped kitchen means you can live like a local. Walking distance to the covered market, the waterfront promenade, and the best restaurants in the city.',
     location:        'Funchal',
     type:            'apartment',
-    price_per_night: 150,
+    price_per_night: 120,
     guests_max:      4,
     bedrooms:        2,
     bathrooms:       1,
     images: [
-      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80',
+      '/apartamento_funchal/outside.png',
+      '/apartamento_funchal/livingroom.png',
+      '/apartamento_funchal/terraço.png',
+      '/apartamento_funchal/dinner.png',
+      '/apartamento_funchal/kitchen.png',
+      '/apartamento_funchal/quarto.png',
+      '/apartamento_funchal/quarto2.png',
+      '/apartamento_funchal/bathroom.png',
     ],
-    amenities: ['WiFi', 'Sea views', 'Air conditioning', 'Kitchen', 'Smart TV', 'Private terrace'],
+    amenities: ['WiFi', 'Private terrace', 'City views', 'Kitchen', 'Air conditioning', 'Smart TV'],
+    status: 'available',
   },
+
+  // ── 2. Azinhaga ───────────────────────────────────────────────────────────
   {
-    title:           'Levada Garden House',
-    description:     'A charming stone cottage nestled beside the famous Levada do Caniço trail. Wake up to birdsong, explore the island on foot from your doorstep, and unwind in a lush private garden shaded by banana and bougainvillea.',
-    location:        'Caniço',
-    type:            'house',
-    price_per_night: 120,
+    title:           'Azinhaga',
+    description:     'A secluded villa with a private swimming pool, nestled in the lush hillsides of Câmara de Lobos — the charming fishing village that once captivated Winston Churchill. Three spacious bedrooms, tropical gardens, and total privacy make this the perfect escape for families or groups seeking the real Madeira.',
+    location:        'Câmara de Lobos',
+    type:            'villa',
+    price_per_night: 200,
     guests_max:      6,
     bedrooms:        3,
     bathrooms:       2,
     images: [
-      'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1540518614846-7eded433c457?auto=format&fit=crop&w=800&q=80',
+      '/azinhaga/house.jpeg',
+      '/azinhaga/pool.jpeg',
+      '/azinhaga/mainbedroom.jpeg',
+      '/azinhaga/bed.jpeg',
+      '/azinhaga/twin_bed.jpeg',
     ],
-    amenities: ['WiFi', 'Private garden', 'Kitchen', 'BBQ', 'Parking', 'Washer'],
+    amenities: ['WiFi', 'Private pool', 'Garden', 'BBQ', 'Kitchen', 'Parking'],
+    status: 'available',
   },
+
+  // ── 3. Cabouco ────────────────────────────────────────────────────────────
   {
-    title:           'Monte Palace Villa',
-    description:     'Elegant five-star living in the historic Monte district, minutes from the famous Monte Palace Tropical Garden. This villa features a heated private pool, a grand terrace overlooking Funchal, and a fully staffed option available on request.',
-    location:        'Monte',
-    type:            'villa',
-    price_per_night: 280,
-    guests_max:      8,
-    bedrooms:        4,
-    bathrooms:       3,
-    images: [
-      'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=800&q=80',
-    ],
-    amenities: ['WiFi', 'Private pool', 'Sea views', 'Garden', 'Air conditioning', 'BBQ', 'Kitchen', 'Parking'],
-  },
-  {
-    title:           'Atlantic Studio',
-    description:     'A sleek, minimalist studio carved into the clifftop of Câmara de Lobos — the very village that inspired Winston Churchill to paint. Just steps from the harbour and the freshest espada restaurants in Madeira.',
-    location:        'Câmara de Lobos',
-    type:            'studio',
-    price_per_night: 85,
-    guests_max:      2,
-    bedrooms:        1,
-    bathrooms:       1,
-    images: [
-      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
-    ],
-    amenities: ['WiFi', 'Sea views', 'Air conditioning', 'Kitchen', 'Smart TV'],
-  },
-  {
-    title:           'Ribeira Brava Townhouse',
-    description:     'A lovingly restored 19th-century townhouse in the lively centre of Ribeira Brava, a 20-minute drive along the southern coast from Funchal. Original azulejo tiles throughout, a rooftop sun terrace, and local fish market at your doorstep.',
-    location:        'Ribeira Brava',
+    title:           'Cabouco',
+    description:     'A spacious traditional Madeiran house sleeping up to eight guests, surrounded by terraced gardens and banana groves in Caniço. Three generous bedrooms, a fully equipped kitchen, and generous outdoor spaces on multiple levels make it ideal for family holidays. The famous Caniço de Baixo diving centre is minutes away.',
+    location:        'Caniço',
     type:            'house',
-    price_per_night: 110,
-    guests_max:      5,
+    price_per_night: 150,
+    guests_max:      8,
     bedrooms:        3,
     bathrooms:       2,
     images: [
-      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1540518614846-7eded433c457?auto=format&fit=crop&w=800&q=80',
+      '/cabouco/apartamento.avif',
+      '/cabouco/mainhouse.jpeg',
+      '/cabouco/outside.jpeg',
+      '/cabouco/bedroom1.jpeg',
+      '/cabouco/bedroom2.jpeg',
+      '/cabouco/bedroom3.jpeg',
+      '/cabouco/kitchen.jpeg',
+      '/cabouco/bathroom.jpeg',
     ],
-    amenities: ['WiFi', 'Rooftop terrace', 'Kitchen', 'Air conditioning', 'Washer', 'Smart TV'],
+    amenities: ['WiFi', 'Garden', 'Kitchen', 'Parking', 'Air conditioning', 'Washer'],
+    status: 'available',
   },
+
+  // ── 4. Casa Alegria ───────────────────────────────────────────────────────
   {
-    title:           'Santana Thatched Chalet',
-    description:     "Madeira's most iconic architecture — a traditional A-frame palheiro with a thick thatched roof, set among apple orchards in the lush north of the island. Ideal for couples and families seeking peace, cool mountain air, and unspoilt countryside.",
+    title:           'Casa Alegria',
+    description:     'Joy is the right word for this beautiful hillside home near Santana\'s famous thatched palheiro houses. Two en-suite bedrooms, an outdoor jacuzzi with sweeping mountain and valley views, and a sun-drenched garden. Wake up to birdsong and cool mountain air — a world apart from the busy south coast.',
     location:        'Santana',
     type:            'house',
-    price_per_night: 135,
-    guests_max:      4,
+    price_per_night: 175,
+    guests_max:      6,
     bedrooms:        2,
+    bathrooms:       2,
+    images: [
+      '/casa_alegria/mainhouse.jpg',
+      '/casa_alegria/viewOutside.jpg',
+      '/casa_alegria/jacuzzi.jpg',
+      '/casa_alegria/bedroom.jpg',
+      '/casa_alegria/bedroom1.jpg',
+      '/casa_alegria/kitchen.jpg',
+      '/casa_alegria/bathroom.jpg',
+    ],
+    amenities: ['WiFi', 'Outdoor jacuzzi', 'Mountain views', 'Garden', 'Kitchen', 'Parking'],
+    status: 'available',
+  },
+
+  // ── 5. Varino ─────────────────────────────────────────────────────────────
+  {
+    title:           'Varino',
+    description:     'Named after the traditional Madeiran fishermen, this bright one-bedroom apartment sits above the harbour of Ribeira Brava with sweeping Atlantic views from every window. Perfect for a couple — tastefully decorated, a fully equipped kitchen, and the best fresh seafood restaurants on the south coast are a short stroll away.',
+    location:        'Ribeira Brava',
+    type:            'apartment',
+    price_per_night: 90,
+    guests_max:      3,
+    bedrooms:        1,
     bathrooms:       1,
     images: [
-      'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=800&q=80',
-      'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=80',
+      '/varino/outside.jpeg',
+      '/varino/view.jpeg',
+      '/varino/livingroom.jpeg',
+      '/varino/kitchen.jpeg',
+      '/varino/bedroom.jpeg',
     ],
-    amenities: ['WiFi', 'Mountain views', 'Garden', 'Kitchen', 'Fireplace', 'Parking'],
+    amenities: ['WiFi', 'Sea views', 'Kitchen', 'Terrace', 'Air conditioning'],
+    status: 'available',
   },
 ]
 
 async function main() {
-  const count = await prisma.properties.count()
-  if (count > 0) {
-    console.log(`Seed skipped — ${count} properties already in the database.`)
-    return
-  }
+  const deleted = await prisma.properties.deleteMany({})
+  console.log(`Cleared ${deleted.count} existing properties.`)
 
   for (const data of PROPERTIES) {
     const p = await prisma.properties.create({ data })
-    console.log(`  ✓ Created: ${p.title} (id ${p.id})`)
+    console.log(`  ✓ ${p.id}  ${p.title}  (${p.location})`)
   }
 
-  console.log(`\nSeeded ${PROPERTIES.length} properties successfully.`)
+  console.log(`\nSeeded ${PROPERTIES.length} properties.`)
 }
 
 main()
