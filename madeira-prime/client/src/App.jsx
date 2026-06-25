@@ -17,6 +17,7 @@ import Footer from './components/Footer'
 import AdminPanel from './components/AdminPanel'
 import BookingSuccess from './components/BookingSuccess'
 import BookingCancelled from './components/BookingCancelled'
+import CookieBanner from './components/CookieBanner'
 
 const params   = new URLSearchParams(window.location.search)
 const pathname = window.location.pathname
@@ -46,6 +47,7 @@ export default function App() {
           <Booking />
         </main>
         <Footer />
+        <CookieBanner />
       </div>
     </LanguageProvider>
   )

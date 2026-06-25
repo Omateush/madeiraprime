@@ -1,0 +1,72 @@
+.banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.1rem 2.5rem;
+  background: #080D12;
+  border-top: 1px solid rgba(201, 168, 76, 0.25);
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.35s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.8rem;
+  color: #8A9AAE;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 780px;
+}
+
+.text strong {
+  color: #C9A84C;
+  font-weight: 700;
+}
+
+.btn {
+  flex-shrink: 0;
+  padding: 0.6rem 1.8rem;
+  background: transparent;
+  border: 1px solid rgba(201, 168, 76, 0.6);
+  border-radius: 4px;
+  color: #C9A84C;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.btn:hover {
+  background: rgba(201, 168, 76, 0.12);
+  border-color: #C9A84C;
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.2rem 1.5rem 1.5rem;
+    gap: 1rem;
+  }
+
+  .btn {
+    width: 100%;
+    text-align: center;
+    padding: 0.75rem;
+  }
+}
