@@ -116,6 +116,24 @@ model projeto_imagens {
   @@map("projeto_imagens")
 }
 
+model properties {
+  id              Int      @id @default(autoincrement())
+  title           String   @db.VarChar(255)
+  description     String?  @db.Text
+  location        String   @db.VarChar(255)
+  type            String   @default("apartment") @db.VarChar(50)
+  price_per_night Decimal  @db.Decimal(10, 2)
+  images          String[]
+  guests_max      Int
+  bedrooms        Int
+  bathrooms       Int      @default(1)
+  amenities       String[]
+  status          String   @default("available") @db.VarChar(20)
+  created_at      DateTime @default(now())
+
+  @@map("properties")
+}
+
 model marcacoes {
   id                Int      @id @default(autoincrement())
   nome              String   @db.VarChar(255)

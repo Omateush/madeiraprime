@@ -400,60 +400,47 @@ app.delete('/api/imoveis/:id', async (req, res) => {
 })
 
 // ─── PROPERTIES — PUBLIC API (Next.js frontend) ──────────────────────────────
-// Thin adapter over `imoveis` that maps Portuguese DB fields to the English
-// Property interface expected by the Next.js app. Only returns available properties.
+// Queries the `properties` table directly — no field translation needed.
+// The `imoveis` table remains the operational store used by the booking system.
 
-const TIPO_MAP = {
-  Apartamento: 'apartment',
-  Studio:      'studio',
-  Moradia:     'house',
-  Vivenda:     'villa',
-  Outro:       'house',
-}
-
-function mapImovelToProperty(imovel) {
+function mapProperty(p) {
   return {
-    id:            String(imovel.id),
-    name:          imovel.titulo,
-    type:          TIPO_MAP[imovel.tipo] ?? 'apartment',
-    location:      imovel.localizacao,
-    description:   imovel.descricao ?? '',
-    pricePerNight: parseFloat(imovel.preco_por_noite),
-    maxGuests:     imovel.num_quartos * 2,
-    bedrooms:      imovel.num_quartos,
-    bathrooms:     Math.max(1, Math.floor(imovel.num_quartos / 2)),
-    images:        imovel.imagem_url ? [imovel.imagem_url] : [],
-    amenities:     [],
+    id:            String(p.id),
+    name:          p.title,
+    type:          p.type,
+    location:      p.location,
+    description:   p.description ?? '',
+    pricePerNight: parseFloat(p.price_per_night),
+    maxGuests:     p.guests_max,
+    bedrooms:      p.bedrooms,
+    bathrooms:     p.bathrooms,
+    images:        p.images,
+    amenities:     p.amenities,
   }
 }
 
-// GET /api/properties
-// Supports ?location= ?type= ?guests= — only returns status=disponivel properties.
+// GET /api/properties — supports ?location= ?type= ?guests=
 app.get('/api/properties', async (req, res) => {
   try {
     const { location, type, guests } = req.query
 
-    const where = { status: 'disponivel' }
+    const where = { status: 'available' }
 
     if (location) {
-      where.localizacao = { contains: location, mode: 'insensitive' }
+      where.location = { contains: location, mode: 'insensitive' }
     }
 
-    if (type) {
-      const TIPO_REVERSE = { apartment: 'Apartamento', studio: 'Studio', house: 'Moradia', villa: 'Vivenda' }
-      const dbTipo = TIPO_REVERSE[type]
-      if (dbTipo) where.tipo = dbTipo
+    if (type && ['apartment', 'villa', 'house', 'studio'].includes(type)) {
+      where.type = type
     }
 
     if (guests) {
       const n = parseInt(guests, 10)
-      if (!isNaN(n) && n > 0) {
-        where.num_quartos = { gte: Math.ceil(n / 2) }
-      }
+      if (!isNaN(n) && n > 0) where.guests_max = { gte: n }
     }
 
-    const imoveis = await prisma.imoveis.findMany({ where, orderBy: { created_at: 'desc' } })
-    res.json(imoveis.map(mapImovelToProperty))
+    const rows = await prisma.properties.findMany({ where, orderBy: { created_at: 'desc' } })
+    res.json(rows.map(mapProperty))
   } catch (error) {
     console.error('[GET /api/properties]', error)
     res.status(500).json({ error: 'Failed to fetch properties' })
@@ -466,10 +453,10 @@ app.get('/api/properties/:id', async (req, res) => {
     const id = parseInt(req.params.id, 10)
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid property ID' })
 
-    const imovel = await prisma.imoveis.findUnique({ where: { id } })
-    if (!imovel) return res.status(404).json({ error: 'Property not found' })
+    const row = await prisma.properties.findUnique({ where: { id } })
+    if (!row) return res.status(404).json({ error: 'Property not found' })
 
-    res.json(mapImovelToProperty(imovel))
+    res.json(mapProperty(row))
   } catch (error) {
     console.error('[GET /api/properties/:id]', error)
     res.status(500).json({ error: 'Failed to fetch property' })
