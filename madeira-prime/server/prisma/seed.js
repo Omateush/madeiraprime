@@ -62,7 +62,6 @@ const PROPERTIES = [
     bedrooms:        3,
     bathrooms:       2,
     images: [
-      '/cabouco/apartamento.avif',
       '/cabouco/mainhouse.jpeg',
       '/cabouco/outside.jpeg',
       '/cabouco/bedroom1.jpeg',

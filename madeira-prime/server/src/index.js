@@ -1,4 +1,8 @@
-require('dotenv').config()
+// Load env: .env.development when NODE_ENV=development (Neon dev branch + test keys),
+// otherwise the default .env (production). Both live at the server root.
+require('dotenv').config({
+  path: process.env.NODE_ENV === 'development' ? '.env.development' : '.env',
+})
 const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
@@ -6,6 +10,13 @@ const rateLimit = require('express-rate-limit')
 const { PrismaClient } = require('@prisma/client')
 const { body, validationResult } = require('express-validator')
 const Stripe = require('stripe')
+const {
+  buildIcsFeed,
+  safeEqual,
+  ensureIcalTokens,
+  startIcalScheduler,
+  runIcalImport,
+} = require('./ical')
 
 const app = express()
 const prisma = new PrismaClient()
@@ -94,9 +105,16 @@ app.post(
       // ── checkout.session.completed ─────────────────────────────────────────
       if (event.type === 'checkout.session.completed') {
         const session = event.data.object
-        const type = session.metadata?.type  // 'marcacao' | 'reserva'
+        const type = session.metadata?.type  // 'marcacao' | 'reserva' | 'booking'
 
-        if (type === 'reserva') {
+        if (type === 'booking') {
+          const bookingId = parseInt(session.metadata.booking_id, 10)
+          await prisma.bookings.update({
+            where: { id: bookingId },
+            data: { status: 'confirmed' }
+          })
+          console.log(`[Webhook] Booking #${bookingId} confirmed`)
+        } else if (type === 'reserva') {
           const reservaId = parseInt(session.metadata.reserva_id, 10)
           const reserva = await prisma.reservas.update({
             where: { id: reservaId },
@@ -125,7 +143,14 @@ app.post(
         const session = event.data.object
         const type = session.metadata?.type
 
-        if (type === 'reserva') {
+        if (type === 'booking') {
+          const bookingId = parseInt(session.metadata.booking_id, 10)
+          await prisma.bookings.update({
+            where: { id: bookingId },
+            data: { status: 'cancelled' }
+          })
+          console.log(`[Webhook] Booking #${bookingId} cancelled — session expired`)
+        } else if (type === 'reserva') {
           const reservaId = parseInt(session.metadata.reserva_id, 10)
           await prisma.reservas.update({
             where: { id: reservaId },
@@ -463,6 +488,194 @@ app.get('/api/properties/:id', async (req, res) => {
   }
 })
 
+// GET /api/properties/:id/availability
+// Public feed for the booking calendar: every unavailable date range for a property,
+// merging active bookings (pending_payment | confirmed) with all blocks (manual +
+// imported Booking.com/Airbnb). `to` is EXCLUSIVE (turnover day stays bookable),
+// matching the checkout guard. Only current/future ranges are returned.
+app.get('/api/properties/:id/availability', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid property ID' })
+
+    const today = new Date()
+    today.setUTCHours(0, 0, 0, 0)
+
+    const [bookings, blocks] = await Promise.all([
+      prisma.bookings.findMany({
+        where: {
+          property_id: id,
+          status: { in: ['pending_payment', 'confirmed'] },
+          check_out: { gte: today },
+        },
+        select: { check_in: true, check_out: true },
+      }),
+      prisma.property_blocks.findMany({
+        where: { property_id: id, end_date: { gte: today } },
+        select: { start_date: true, end_date: true, reason: true },
+      }),
+    ])
+
+    const iso = (d) => d.toISOString().slice(0, 10)
+    const blocked = [
+      ...bookings.map((b) => ({ from: iso(b.check_in), to: iso(b.check_out), kind: 'booking' })),
+      ...blocks.map((b) => ({ from: iso(b.start_date), to: iso(b.end_date), kind: b.reason })),
+    ].sort((a, b) => a.from.localeCompare(b.from))
+
+    res.set('Cache-Control', 'public, max-age=60')
+    res.json({ propertyId: id, blocked })
+  } catch (error) {
+    console.error('[GET /api/properties/:id/availability]', error)
+    res.status(500).json({ error: 'Failed to fetch availability' })
+  }
+})
+
+// ─── iCAL EXPORT — public feed per property ──────────────────────────────────
+// GET /ical/export/:propertyId.ics?token=...
+// Read by Booking.com / Airbnb without auth, so the unguessable per-property
+// token is the access control. Generated on-the-fly; cached 5 min.
+app.get('/ical/export/:filename', async (req, res) => {
+  const match = /^(\d+)\.ics$/.exec(req.params.filename)
+  if (!match) return res.status(404).send('Not found')
+
+  const propertyId = parseInt(match[1], 10)
+  const token = req.query.token
+
+  try {
+    const property = await prisma.properties.findUnique({ where: { id: propertyId } })
+
+    // Same 404 for "no such property" and "wrong token" — never reveal existence.
+    if (!property || !property.ical_token || !token || !safeEqual(token, property.ical_token)) {
+      return res.status(404).send('Not found')
+    }
+
+    const [bookings, blocks] = await Promise.all([
+      prisma.bookings.findMany({
+        where: { property_id: propertyId, status: 'confirmed' },
+        orderBy: { check_in: 'asc' },
+      }),
+      prisma.property_blocks.findMany({
+        where: { property_id: propertyId },
+        orderBy: { start_date: 'asc' },
+      }),
+    ])
+
+    const ics = buildIcsFeed({ property, bookings, blocks })
+
+    res.set('Content-Type', 'text/calendar; charset=utf-8')
+    res.set('Cache-Control', 'public, max-age=300')
+    res.set('Content-Disposition', `inline; filename="property-${propertyId}.ics"`)
+    res.send(ics)
+  } catch (error) {
+    console.error('[GET /ical/export]', error)
+    res.status(500).send('Internal error')
+  }
+})
+
+// ─── iCAL FEEDS — ADMIN ───────────────────────────────────────────────────────
+// Register the external Booking.com/Airbnb iCal URLs the importer pulls from.
+// ⚠️ Unauthenticated, like the rest of this admin API. The importer fetches these
+// URLs server-side, so these routes MUST sit behind admin auth before production
+// (an attacker could otherwise register internal URLs — SSRF).
+
+const ICAL_SOURCES = ['booking.com', 'airbnb', 'other']
+
+// GET /api/properties/:id/ical-feeds — list a property's import feeds
+app.get('/api/properties/:id/ical-feeds', async (req, res) => {
+  try {
+    const propertyId = parseInt(req.params.id, 10)
+    if (isNaN(propertyId)) return res.status(400).json({ success: false, error: 'Invalid property ID' })
+    const feeds = await prisma.property_ical_feeds.findMany({
+      where: { property_id: propertyId },
+      orderBy: { created_at: 'desc' },
+    })
+    res.json({ success: true, total: feeds.length, data: feeds })
+  } catch (error) {
+    console.error('[GET /api/properties/:id/ical-feeds]', error)
+    res.status(500).json({ success: false, error: 'Erro ao buscar feeds' })
+  }
+})
+
+// POST /api/properties/:id/ical-feeds — register a feed { source, url, active? }
+app.post('/api/properties/:id/ical-feeds', [
+  body('source').trim().isIn(ICAL_SOURCES).withMessage('Source inválida (booking.com | airbnb | other)'),
+  body('url').trim().isURL({ protocols: ['http', 'https'], require_protocol: true })
+    .withMessage('URL inválida').isLength({ max: 1000 }),
+  body('active').optional().isBoolean().withMessage('active deve ser booleano'),
+], async (req, res) => {
+  const validationError = handleValidationErrors(req, res)
+  if (validationError !== null) return
+  try {
+    const propertyId = parseInt(req.params.id, 10)
+    if (isNaN(propertyId)) return res.status(400).json({ success: false, error: 'Invalid property ID' })
+
+    const property = await prisma.properties.findUnique({ where: { id: propertyId }, select: { id: true } })
+    if (!property) return res.status(404).json({ success: false, error: 'Imóvel não encontrado.' })
+
+    const feed = await prisma.property_ical_feeds.create({
+      data: {
+        property_id: propertyId,
+        source: req.body.source,
+        url: req.body.url.trim(),
+        active: req.body.active !== undefined ? Boolean(req.body.active) : true,
+      },
+    })
+    res.status(201).json({ success: true, data: feed })
+  } catch (error) {
+    console.error('[POST /api/properties/:id/ical-feeds]', error)
+    res.status(500).json({ success: false, error: 'Erro ao criar feed' })
+  }
+})
+
+// PATCH /api/ical-feeds/:feedId — update url / source / active (e.g. pause a feed)
+app.patch('/api/ical-feeds/:feedId', [
+  body('source').optional().trim().isIn(ICAL_SOURCES).withMessage('Source inválida'),
+  body('url').optional().trim().isURL({ protocols: ['http', 'https'], require_protocol: true })
+    .withMessage('URL inválida').isLength({ max: 1000 }),
+  body('active').optional().isBoolean().withMessage('active deve ser booleano'),
+], async (req, res) => {
+  const validationError = handleValidationErrors(req, res)
+  if (validationError !== null) return
+  try {
+    const data = {}
+    if (req.body.source !== undefined) data.source = req.body.source
+    if (req.body.url !== undefined) data.url = req.body.url.trim()
+    if (req.body.active !== undefined) data.active = Boolean(req.body.active)
+
+    const feed = await prisma.property_ical_feeds.update({
+      where: { id: parseInt(req.params.feedId, 10) },
+      data,
+    })
+    res.json({ success: true, data: feed })
+  } catch (error) {
+    console.error('[PATCH /api/ical-feeds/:feedId]', error)
+    res.status(500).json({ success: false, error: 'Erro ao actualizar feed' })
+  }
+})
+
+// DELETE /api/ical-feeds/:feedId
+app.delete('/api/ical-feeds/:feedId', async (req, res) => {
+  try {
+    await prisma.property_ical_feeds.delete({ where: { id: parseInt(req.params.feedId, 10) } })
+    res.json({ success: true })
+  } catch (error) {
+    console.error('[DELETE /api/ical-feeds/:feedId]', error)
+    res.status(500).json({ success: false, error: 'Erro ao eliminar feed' })
+  }
+})
+
+// POST /api/ical-feeds/sync — run the importer now instead of waiting for the scheduler.
+// Returns { feeds, ok, failed }. Useful right after adding a feed, to verify it loads.
+app.post('/api/ical-feeds/sync', async (req, res) => {
+  try {
+    const result = await runIcalImport(prisma)
+    res.json({ success: true, ...result })
+  } catch (error) {
+    console.error('[POST /api/ical-feeds/sync]', error)
+    res.status(500).json({ success: false, error: 'Erro ao sincronizar feeds' })
+  }
+})
+
 // ─── RESERVAS — ADMIN ─────────────────────────────────────────────────────────
 
 // GET /api/reservas
@@ -603,6 +816,143 @@ app.post('/api/checkout/reserva', [
   }
 })
 
+// ─── CHECKOUT — PROPERTY BOOKING (Next.js frontend) ──────────────────────────
+// POST /api/checkout/property
+// Accepts propertyId + dates + guest info, calculates total from DB price,
+// creates a Stripe Checkout session with inline price_data, and records the
+// booking. Webhook (type: 'booking') confirms it on payment completion.
+
+app.post('/api/checkout/property', [
+  body('property_id').isInt({ min: 1 }).withMessage('Invalid property ID'),
+  body('guest_name').trim().notEmpty().withMessage('Name is required').isLength({ max: 255 }),
+  body('guest_email').trim().isEmail().withMessage('Invalid email').normalizeEmail(),
+  body('check_in').notEmpty().isISO8601().withMessage('Invalid check-in date (YYYY-MM-DD)'),
+  body('check_out').notEmpty().isISO8601().withMessage('Invalid check-out date (YYYY-MM-DD)'),
+  body('guests').isInt({ min: 1, max: 20 }).withMessage('Invalid guest count'),
+], async (req, res) => {
+  const validationError = handleValidationErrors(req, res)
+  if (validationError !== null) return
+
+  if (!stripeReady()) {
+    return res.status(503).json({ success: false, error: 'Payments not configured. Contact the administrator.' })
+  }
+
+  const propertyId = parseInt(req.body.property_id, 10)
+  const checkIn    = new Date(req.body.check_in)
+  const checkOut   = new Date(req.body.check_out)
+  const msPerDay   = 1000 * 60 * 60 * 24
+  const nights     = Math.round((checkOut - checkIn) / msPerDay)
+
+  if (nights < 1) {
+    return res.status(400).json({ success: false, error: 'Check-out must be after check-in.' })
+  }
+
+  try {
+    const property = await prisma.properties.findUnique({ where: { id: propertyId } })
+    if (!property) return res.status(404).json({ success: false, error: 'Property not found.' })
+    if (property.status !== 'available') {
+      return res.status(409).json({ success: false, error: 'This property is not currently available.' })
+    }
+
+    // ── Availability guard ──────────────────────────────────────────────────
+    // Reject if the requested range overlaps an active booking or any block
+    // (manual, maintenance, or imported from Booking.com/Airbnb via iCal).
+    // Half-open interval [check_in, check_out): the turnover day stays bookable,
+    // so overlap = existing.start < new.end AND existing.end > new.start.
+    const [overlappingBooking, overlappingBlock] = await Promise.all([
+      prisma.bookings.findFirst({
+        where: {
+          property_id: propertyId,
+          status: { in: ['pending_payment', 'confirmed'] },
+          check_in:  { lt: checkOut },
+          check_out: { gt: checkIn },
+        },
+        select: { id: true },
+      }),
+      prisma.property_blocks.findFirst({
+        where: {
+          property_id: propertyId,
+          start_date: { lt: checkOut },
+          end_date:   { gt: checkIn },
+        },
+        select: { id: true },
+      }),
+    ])
+
+    if (overlappingBooking || overlappingBlock) {
+      return res.status(409).json({
+        success: false,
+        error: 'These dates are no longer available. Please choose another period.',
+      })
+    }
+
+    const pricePerNight = parseFloat(property.price_per_night)
+    const totalAmount   = pricePerNight * nights
+    const totalCents    = Math.round(totalAmount * 100)
+
+    // Create booking record (pending until Stripe confirms)
+    const booking = await prisma.bookings.create({
+      data: {
+        property_id:    propertyId,
+        guest_name:     req.body.guest_name,
+        guest_email:    req.body.guest_email,
+        check_in:       checkIn,
+        check_out:      checkOut,
+        nights,
+        price_per_night: pricePerNight,
+        total_amount:   totalAmount,
+        guests:         parseInt(req.body.guests, 10),
+        status:         'pending_payment',
+      }
+    })
+
+    const NEXTJS_URL = process.env.NEXTJS_URL || 'http://localhost:3000'
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      customer_email: req.body.guest_email,
+      line_items: [
+        {
+          price_data: {
+            currency: 'eur',
+            unit_amount: totalCents,
+            product_data: {
+              name: property.title,
+              description: `${req.body.check_in} → ${req.body.check_out} · ${nights} night${nights !== 1 ? 's' : ''} · ${req.body.guest_name}`,
+            },
+          },
+          quantity: 1,
+        }
+      ],
+      metadata: {
+        type:        'booking',
+        booking_id:  String(booking.id),
+        property_id: String(propertyId),
+        check_in:    req.body.check_in,
+        check_out:   req.body.check_out,
+        guest_name:  req.body.guest_name,
+      },
+      allow_promotion_codes: true,
+      success_url: `${NEXTJS_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${NEXTJS_URL}/properties/${propertyId}`,
+    })
+
+    await prisma.bookings.update({
+      where: { id: booking.id },
+      data:  { stripe_session_id: session.id }
+    })
+
+    console.log(`[Checkout/Property] Property #${propertyId} — booking #${booking.id} — session: ${session.id}`)
+
+    res.status(201).json({ success: true, url: session.url })
+
+  } catch (error) {
+    console.error('[POST /api/checkout/property]', error)
+    res.status(500).json({ success: false, error: 'Failed to initiate payment. Please try again.' })
+  }
+})
+
 // ─── MARCAÇÕES — CHECKOUT STRIPE ─────────────────────────────────────────────
 
 app.post('/api/checkout/marcacao', [
@@ -738,6 +1088,10 @@ app.listen(PORT, () => {
   console.log(`💳 Stripe key   : ${keyOk   ? '✅ Configurada' : '⚠️  Em falta'}`)
   console.log(`🏷️  Stripe price : ${priceOk ? `✅ ${process.env.STRIPE_PRICE_ID}` : '⚠️  Corre: node scripts/create-stripe-product.js'}`)
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`)
+
+  // iCal sync: ensure every property has an export token, then start the importer.
+  ensureIcalTokens(prisma).catch(e => console.error('[iCal] token backfill failed:', e.message))
+  startIcalScheduler(prisma)
 })
 
 process.on('SIGINT', async () => { await prisma.$disconnect(); process.exit(0) })
