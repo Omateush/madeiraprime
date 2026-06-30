@@ -17,6 +17,7 @@ const {
   startIcalScheduler,
   runIcalImport,
 } = require('./ical')
+const { verifyCredentials, signToken, requireAdmin, authConfigured } = require('./auth')
 
 const app = express()
 const prisma = new PrismaClient()
@@ -73,6 +74,7 @@ const writeLimiter = rateLimit({
 })
 
 app.use(generalLimiter)
+app.use('/api/auth', writeLimiter)
 app.use('/api/leads', writeLimiter)
 app.use('/api/checkout', writeLimiter)
 
@@ -236,6 +238,26 @@ app.get('/api/health', (req, res) => {
   })
 })
 
+// ─── AUTH — ADMIN LOGIN ───────────────────────────────────────────────────────
+// POST /api/auth/login { email, password } -> { token }. Use the token as
+// `Authorization: Bearer <token>` on the protected admin routes below.
+
+app.post('/api/auth/login', [
+  body('email').trim().isEmail().withMessage('Email inválido'),
+  body('password').notEmpty().withMessage('Password é obrigatória'),
+], async (req, res) => {
+  const validationError = handleValidationErrors(req, res)
+  if (validationError !== null) return
+  if (!authConfigured()) {
+    return res.status(503).json({ success: false, error: 'Autenticação não configurada no servidor.' })
+  }
+  const ok = await verifyCredentials(req.body.email, req.body.password)
+  if (!ok) {
+    return res.status(401).json({ success: false, error: 'Credenciais inválidas.' })
+  }
+  res.json({ success: true, token: signToken() })
+})
+
 // ─── LEADS PROPRIETÁRIOS ──────────────────────────────────────────────────────
 
 app.post('/api/leads/proprietario', [
@@ -277,7 +299,7 @@ app.post('/api/leads/proprietario', [
   }
 })
 
-app.get('/api/leads/proprietario', async (req, res) => {
+app.get('/api/leads/proprietario', requireAdmin, async (req, res) => {
   try {
     const leads = await prisma.leads_proprietarios.findMany({ orderBy: { created_at: 'desc' } })
     res.json({ success: true, total: leads.length, data: leads })
@@ -319,7 +341,7 @@ app.post('/api/leads/investidor', [
   }
 })
 
-app.get('/api/leads/investidor', async (req, res) => {
+app.get('/api/leads/investidor', requireAdmin, async (req, res) => {
   try {
     const leads = await prisma.leads_investidores.findMany({ orderBy: { created_at: 'desc' } })
     res.json({ success: true, total: leads.length, data: leads })
@@ -332,7 +354,7 @@ app.get('/api/leads/investidor', async (req, res) => {
 // ─── IMÓVEIS ──────────────────────────────────────────────────────────────────
 
 // GET /api/imoveis  — ?status=disponivel|bloqueado|ocupado (optional filter)
-app.get('/api/imoveis', async (req, res) => {
+app.get('/api/imoveis', requireAdmin, async (req, res) => {
   try {
     const where = req.query.status ? { status: req.query.status } : {}
     const imoveis = await prisma.imoveis.findMany({ where, orderBy: { created_at: 'desc' } })
@@ -344,7 +366,7 @@ app.get('/api/imoveis', async (req, res) => {
 })
 
 // POST /api/imoveis
-app.post('/api/imoveis', [
+app.post('/api/imoveis', requireAdmin, [
   body('titulo').trim().notEmpty().withMessage('Título é obrigatório').isLength({ max: 255 }),
   body('localizacao').trim().notEmpty().withMessage('Localização é obrigatória'),
   body('tipo').trim().notEmpty().withMessage('Tipo é obrigatório')
@@ -375,7 +397,7 @@ app.post('/api/imoveis', [
 })
 
 // PATCH /api/imoveis/:id
-app.patch('/api/imoveis/:id', [
+app.patch('/api/imoveis/:id', requireAdmin, [
   body('titulo').optional().trim().notEmpty().isLength({ max: 255 }),
   body('localizacao').optional().trim().notEmpty(),
   body('tipo').optional().isIn(['Apartamento', 'Moradia', 'Studio', 'Vivenda', 'Outro']),
@@ -414,7 +436,7 @@ app.patch('/api/imoveis/:id', [
 })
 
 // DELETE /api/imoveis/:id
-app.delete('/api/imoveis/:id', async (req, res) => {
+app.delete('/api/imoveis/:id', requireAdmin, async (req, res) => {
   try {
     await prisma.imoveis.delete({ where: { id: parseInt(req.params.id, 10) } })
     res.json({ success: true })
@@ -581,7 +603,7 @@ app.get('/ical/export/:filename', async (req, res) => {
 const ICAL_SOURCES = ['booking.com', 'airbnb', 'other']
 
 // GET /api/properties/:id/ical-feeds — list a property's import feeds
-app.get('/api/properties/:id/ical-feeds', async (req, res) => {
+app.get('/api/properties/:id/ical-feeds', requireAdmin, async (req, res) => {
   try {
     const propertyId = parseInt(req.params.id, 10)
     if (isNaN(propertyId)) return res.status(400).json({ success: false, error: 'Invalid property ID' })
@@ -597,7 +619,7 @@ app.get('/api/properties/:id/ical-feeds', async (req, res) => {
 })
 
 // POST /api/properties/:id/ical-feeds — register a feed { source, url, active? }
-app.post('/api/properties/:id/ical-feeds', [
+app.post('/api/properties/:id/ical-feeds', requireAdmin, [
   body('source').trim().isIn(ICAL_SOURCES).withMessage('Source inválida (booking.com | airbnb | other)'),
   body('url').trim().isURL({ protocols: ['http', 'https'], require_protocol: true })
     .withMessage('URL inválida').isLength({ max: 1000 }),
@@ -628,7 +650,7 @@ app.post('/api/properties/:id/ical-feeds', [
 })
 
 // PATCH /api/ical-feeds/:feedId — update url / source / active (e.g. pause a feed)
-app.patch('/api/ical-feeds/:feedId', [
+app.patch('/api/ical-feeds/:feedId', requireAdmin, [
   body('source').optional().trim().isIn(ICAL_SOURCES).withMessage('Source inválida'),
   body('url').optional().trim().isURL({ protocols: ['http', 'https'], require_protocol: true })
     .withMessage('URL inválida').isLength({ max: 1000 }),
@@ -654,7 +676,7 @@ app.patch('/api/ical-feeds/:feedId', [
 })
 
 // DELETE /api/ical-feeds/:feedId
-app.delete('/api/ical-feeds/:feedId', async (req, res) => {
+app.delete('/api/ical-feeds/:feedId', requireAdmin, async (req, res) => {
   try {
     await prisma.property_ical_feeds.delete({ where: { id: parseInt(req.params.feedId, 10) } })
     res.json({ success: true })
@@ -666,7 +688,7 @@ app.delete('/api/ical-feeds/:feedId', async (req, res) => {
 
 // POST /api/ical-feeds/sync — run the importer now instead of waiting for the scheduler.
 // Returns { feeds, ok, failed }. Useful right after adding a feed, to verify it loads.
-app.post('/api/ical-feeds/sync', async (req, res) => {
+app.post('/api/ical-feeds/sync', requireAdmin, async (req, res) => {
   try {
     const result = await runIcalImport(prisma)
     res.json({ success: true, ...result })
@@ -679,7 +701,7 @@ app.post('/api/ical-feeds/sync', async (req, res) => {
 // ─── RESERVAS — ADMIN ─────────────────────────────────────────────────────────
 
 // GET /api/reservas
-app.get('/api/reservas', async (req, res) => {
+app.get('/api/reservas', requireAdmin, async (req, res) => {
   try {
     const reservas = await prisma.reservas.findMany({
       orderBy: { created_at: 'desc' },
@@ -1038,7 +1060,7 @@ app.post('/api/checkout/marcacao', [
 
 // ─── MARCAÇÕES — ADMIN ────────────────────────────────────────────────────────
 
-app.get('/api/marcacoes', async (req, res) => {
+app.get('/api/marcacoes', requireAdmin, async (req, res) => {
   try {
     const marcacoes = await prisma.marcacoes.findMany({ orderBy: { created_at: 'desc' } })
     res.json({ success: true, total: marcacoes.length, data: marcacoes })
@@ -1048,7 +1070,7 @@ app.get('/api/marcacoes', async (req, res) => {
   }
 })
 
-app.patch('/api/marcacoes/:id/status', [
+app.patch('/api/marcacoes/:id/status', requireAdmin, [
   body('status').isIn(['pendente', 'confirmado', 'cancelado', 'aguardar_pagamento']).withMessage('Status inválido')
 ], async (req, res) => {
   const validationError = handleValidationErrors(req, res)
